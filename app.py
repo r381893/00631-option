@@ -147,28 +147,31 @@ LEVERAGE_00631L = 2.0  # 00631L 為 2 倍槓桿 ETF
 PRICE_STEP = 100.0
 
 # ======== 網路資料抓取函式 ========
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=300)
 def get_tse_index_price(ticker="^TWII"):
-    """從 Yahoo Finance 獲取加權指數的最新價格"""
+    """從 Yahoo Finance 獲取加權指數的最新價格 (使用 history 更穩定)"""
     try:
         tse_ticker = yf.Ticker(ticker)
-        info = tse_ticker.info
-        price = info.get('regularMarketPrice') or info.get('regularMarketPreviousClose')
-        if price and price > 1000:
-            return float(price)
+        # 使用 history 取得最近 5 天的資料，比 info 更穩定
+        hist = tse_ticker.history(period="5d")
+        if not hist.empty:
+            price = float(hist['Close'].iloc[-1])
+            if price > 1000:
+                return price
         return None
     except Exception as e:
         return None
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=300)
 def get_00631L_price():
     """從 Yahoo Finance 獲取 00631L 的最新價格"""
     try:
         etf_ticker = yf.Ticker("00631L.TW")
-        info = etf_ticker.info
-        price = info.get('regularMarketPrice') or info.get('regularMarketPreviousClose')
-        if price and price > 0:
-            return float(price)
+        hist = etf_ticker.history(period="5d")
+        if not hist.empty:
+            price = float(hist['Close'].iloc[-1])
+            if price > 0:
+                return price
         return None
     except Exception as e:
         return None
