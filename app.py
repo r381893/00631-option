@@ -4,22 +4,13 @@ import numpy as np
 import json
 import os
 import matplotlib.pyplot as plt
-from matplotlib import rcParams, font_manager
+from matplotlib import rcParams
 import yfinance as yf
 from datetime import date, timedelta
 
 # ======== 修正中文亂碼 (設置 Matplotlib 字體) ========
-chinese_fonts = ['Microsoft JhengHei', 'DFKai-SB', 'BiauKai', 'Arial Unicode MS']
-font_found = False
-for font in chinese_fonts:
-    if font in font_manager.findSystemFonts(fontpaths=None, fontext='ttf'):
-        rcParams['font.sans-serif'] = [font]
-        font_found = True
-        break
-        
-if not font_found:
-    rcParams['font.sans-serif'] = chinese_fonts
-
+# 雲端環境簡化設定，避免 findSystemFonts 卡住
+rcParams['font.sans-serif'] = ['Microsoft JhengHei', 'DFKai-SB', 'DejaVu Sans', 'sans-serif']
 rcParams['axes.unicode_minus'] = False
 
 # ======== 頁面設定 ========
