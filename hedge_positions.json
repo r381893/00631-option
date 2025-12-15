@@ -1,0 +1,29 @@
+{
+  "etf_lots": 6.5,
+  "etf_cost": 328.8000000000004,
+  "etf_current_price": 339.55,
+  "hedge_ratio": 0.4,
+  "option_positions": [
+    {
+      "type": "Call",
+      "direction": "賣出",
+      "strike": 28100.0,
+      "lots": 6,
+      "premium": 66.0
+    },
+    {
+      "type": "Call",
+      "direction": "買進",
+      "strike": 28200.0,
+      "lots": 6,
+      "premium": 43.0
+    },
+    {
+      "type": "Put",
+      "direction": "買進",
+      "strike": 27400.0,
+      "lots": 3,
+      "premium": 33.0
+    }
+  ]
+}

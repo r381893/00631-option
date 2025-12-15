@@ -1,0 +1,10 @@
+# 儲存檔案 - 保護本地資料不被覆蓋
+hedge_positions.json
+
+# Python
+__pycache__/
+*.py[cod]
+
+# 系統檔案
+.DS_Store
+Thumbs.db
