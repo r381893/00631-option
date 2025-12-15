@@ -611,17 +611,17 @@ if etf_lots > 0 or st.session_state.option_positions:
         ax.plot(prices, etf_profits, label="00631L", color="#3b82f6", linewidth=2, linestyle="--", alpha=0.7)
     
     if st.session_state.option_positions:
-        ax.plot(prices, option_profits, label="選擇權組合", color="#f59e0b", linewidth=2, linestyle="--", alpha=0.7)
+        ax.plot(prices, option_profits, label="Options", color="#f59e0b", linewidth=2, linestyle="--", alpha=0.7)
     
-    ax.plot(prices, combined_profits, label="組合總損益", color="#10b981", linewidth=3)
+    ax.plot(prices, combined_profits, label="Total P/L", color="#10b981", linewidth=3)
     
     # 零線
     ax.axhline(y=0, color='gray', linestyle='-', linewidth=0.5)
-    ax.axvline(x=center, color='red', linestyle='--', linewidth=1, alpha=0.5, label=f"現價 {center:,.0f}")
+    ax.axvline(x=center, color='red', linestyle='--', linewidth=1, alpha=0.5, label=f"Current {center:,.0f}")
     
-    ax.set_xlabel("結算指數", fontsize=12)
-    ax.set_ylabel("損益 (元)", fontsize=12)
-    ax.set_title("組合損益曲線", fontsize=14, fontweight='bold')
+    ax.set_xlabel("Settlement Index", fontsize=12)
+    ax.set_ylabel("P/L (TWD)", fontsize=12)
+    ax.set_title("P/L Curve", fontsize=14, fontweight='bold')
     ax.legend(loc='best')
     ax.grid(True, alpha=0.3)
     
@@ -631,6 +631,17 @@ if etf_lots > 0 or st.session_state.option_positions:
     plt.tight_layout()
     st.pyplot(fig)
     plt.close()
+    
+    # 中文圖例說明
+    st.markdown("""
+    <div style='font-size: 13px; color: #64748b; margin-top: -10px; padding: 8px 15px; background-color: #f8fafc; border-radius: 6px;'>
+        📊 <b>圖例說明：</b>
+        <span style='color: #3b82f6;'>00631L</span> = ETF損益 | 
+        <span style='color: #f59e0b;'>Options</span> = 選擇權組合 | 
+        <span style='color: #10b981;'>Total P/L</span> = 組合總損益 | 
+        <span style='color: red;'>Current</span> = 現價
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("</div>", unsafe_allow_html=True)
     
