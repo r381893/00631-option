@@ -441,54 +441,76 @@ if etf_lots > 0:
     """, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ======== 新增選擇權倉位 ========
+# ======== 新增倉位 ========
 st.markdown("<div class='card'>", unsafe_allow_html=True)
-st.markdown('<div class="section-title">➕ 新增選擇權倉位</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">➕ 新增倉位</div>', unsafe_allow_html=True)
 
 with st.form(key="add_option_form"):
     # 第一行：產品類型選擇
     col_product, col_type, col_direction = st.columns([1.5, 1.2, 1.2])
     
     with col_product:
-        opt_product = st.selectbox("產品", ["台指選擇權 (50元/點)", "微台選擇權 (10元/點)"], key="new_opt_product")
+        opt_product = st.selectbox("產品", ["台指選擇權 (50元/點)", "微台期貨 (10元/點)"], key="new_opt_product")
+    
+    is_micro_futures = "微台期貨" in opt_product
+    
     with col_type:
-        opt_type = st.selectbox("類型", ["買權 (Call)", "賣權 (Put)"], key="new_opt_type")
+        if is_micro_futures:
+            # 微台期貨沒有買權賣權
+            st.markdown("<div style='padding: 8px; background-color: #e0f2fe; border-radius: 6px; text-align: center; margin-top: 24px;'><b style='color: #0369a1;'>期貨</b></div>", unsafe_allow_html=True)
+            opt_type = "Futures"
+        else:
+            opt_type = st.selectbox("類型", ["買權 (Call)", "賣權 (Put)"], key="new_opt_type")
+    
     with col_direction:
-        # 微台只能賣出
-        if "微台" in opt_product:
-            opt_direction = "賣出"
-            st.markdown("<div style='padding: 8px; background-color: #fee2e2; border-radius: 6px; text-align: center; margin-top: 24px;'><b style='color: #dc2626;'>僅賣出</b></div>", unsafe_allow_html=True)
+        if is_micro_futures:
+            # 微台期貨只能做空
+            st.markdown("<div style='padding: 8px; background-color: #fee2e2; border-radius: 6px; text-align: center; margin-top: 24px;'><b style='color: #dc2626;'>做空</b></div>", unsafe_allow_html=True)
+            opt_direction = "做空"
         else:
             opt_direction = st.radio("方向", ["買進", "賣出"], horizontal=True, key="new_opt_direction")
     
-    # 第二行：履約價、口數、權利金
+    # 第二行：進場價/履約價、口數、權利金/保證金
     col3, col4, col5 = st.columns([1.5, 1, 1.5])
     
     with col3:
-        # 預設履約價為當前指數的整數
+        # 預設價格為當前指數的整數
         default_strike = round(center / 100) * 100
-        opt_strike = st.number_input("履約價", min_value=0.0, step=100.0, value=float(default_strike), key="new_opt_strike")
+        price_label = "進場價" if is_micro_futures else "履約價"
+        opt_strike = st.number_input(price_label, min_value=0.0, step=100.0, value=float(default_strike), key="new_opt_strike")
     with col4:
         opt_lots = st.number_input("口數", min_value=1, step=1, value=1, key="new_opt_lots")
     with col5:
-        opt_premium = st.number_input("權利金 (點)", min_value=0.0, step=1.0, value=0.0, key="new_opt_premium")
+        if is_micro_futures:
+            # 期貨不需要權利金
+            st.markdown("<div style='padding: 8px; background-color: #f1f5f9; border-radius: 6px; text-align: center; margin-top: 24px;'><span style='color: #64748b;'>無權利金</span></div>", unsafe_allow_html=True)
+            opt_premium = 0.0
+        else:
+            opt_premium = st.number_input("權利金 (點)", min_value=0.0, step=1.0, value=0.0, key="new_opt_premium")
     
     submitted = st.form_submit_button("✅ 新增倉位", use_container_width=True)
     
     if submitted:
-        # 判斷產品類型
-        is_micro = "微台" in opt_product
-        # 微台強制為賣出
-        final_direction = "賣出" if is_micro else opt_direction
-        
-        new_position = {
-            "product": "微台" if is_micro else "台指",
-            "type": "Call" if "Call" in opt_type else "Put",
-            "direction": final_direction,
-            "strike": float(opt_strike),
-            "lots": int(opt_lots),
-            "premium": float(opt_premium)
-        }
+        if is_micro_futures:
+            # 微台期貨
+            new_position = {
+                "product": "微台期貨",
+                "type": "Futures",
+                "direction": "做空",
+                "strike": float(opt_strike),  # 進場價
+                "lots": int(opt_lots),
+                "premium": 0.0
+            }
+        else:
+            # 台指選擇權
+            new_position = {
+                "product": "台指",
+                "type": "Call" if "Call" in opt_type else "Put",
+                "direction": opt_direction,
+                "strike": float(opt_strike),
+                "lots": int(opt_lots),
+                "premium": float(opt_premium)
+            }
         st.session_state.option_positions.append(new_position)
         # 自動儲存
         save_data({
@@ -498,15 +520,15 @@ with st.form(key="add_option_form"):
             "hedge_ratio": st.session_state.hedge_ratio,
             "option_positions": st.session_state.option_positions
         })
-        st.success("已新增選擇權倉位")
+        st.success("已新增倉位")
         st.rerun()
 
 st.markdown("</div>", unsafe_allow_html=True)
 
-# ======== 現有選擇權倉位 ========
+# ======== 現有倉位 ========
 if st.session_state.option_positions:
     st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.markdown('<div class="section-title">📋 現有選擇權倉位</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">📋 現有倉位</div>', unsafe_allow_html=True)
     
     # 計算權利金收支
     total_premium_in = 0.0  # 收入（賣出）
@@ -518,37 +540,63 @@ if st.session_state.option_positions:
         
         # 判斷產品類型 (向下兼容舊資料)
         product_type = pos.get("product", "台指")
-        multiplier = MICRO_OPTION_MULTIPLIER if product_type == "微台" else OPTION_MULTIPLIER
-        product_label = "微台" if product_type == "微台" else "台指"
-        product_color = "#8b5cf6" if product_type == "微台" else "#0891b2"  # 微台紫色, 台指青色
+        is_futures = product_type == "微台期貨" or pos.get("type") == "Futures"
         
-        type_tag = "call-tag" if pos["type"] == "Call" else "put-tag"
-        type_label = "買權" if pos["type"] == "Call" else "賣權"
-        dir_tag = "buy-tag" if pos["direction"] == "買進" else "sell-tag"
-        
-        premium_value = pos["premium"] * pos["lots"] * multiplier
-        if pos["direction"] == "賣出":
-            total_premium_in += premium_value
-            premium_display = f"+{premium_value:,.0f}"
-            premium_style = "color: #10b981;"
+        if is_futures:
+            multiplier = MICRO_OPTION_MULTIPLIER
+            product_label = "微台期貨"
+            product_color = "#8b5cf6"  # 紫色
+            type_label = ""  # 期貨不顯示類型
+            dir_tag = "sell-tag"
+            dir_label = "做空"
+            premium_value = 0
+            premium_display = ""
+            premium_style = ""
         else:
-            total_premium_out += premium_value
-            premium_display = f"-{premium_value:,.0f}"
-            premium_style = "color: #ef4444;"
+            multiplier = MICRO_OPTION_MULTIPLIER if product_type == "微台" else OPTION_MULTIPLIER
+            product_label = product_type if product_type else "台指"
+            product_color = "#0891b2"  # 青色
+            type_tag = "call-tag" if pos["type"] == "Call" else "put-tag"
+            type_label = "買權" if pos["type"] == "Call" else "賣權"
+            dir_tag = "buy-tag" if pos["direction"] == "買進" else "sell-tag"
+            dir_label = pos["direction"]
+            
+            premium_value = pos["premium"] * pos["lots"] * multiplier
+            if pos["direction"] == "賣出":
+                total_premium_in += premium_value
+                premium_display = f"+{premium_value:,.0f} 元"
+                premium_style = "color: #10b981;"
+            else:
+                total_premium_out += premium_value
+                premium_display = f"-{premium_value:,.0f} 元"
+                premium_style = "color: #ef4444;"
         
         with col_info:
-            st.markdown(f"""
-            <div style='padding: 8px 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;'>
-                <span style='color: #64748b;'>#{i+1}</span>
-                <span style='background-color: {product_color}20; color: {product_color}; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight: 600;'>{product_label}</span>
-                <span class='{dir_tag}'>{pos['direction']}</span>
-                <span class='{type_tag}'>{type_label}</span>
-                <span style='font-weight: 700;'>{pos['strike']:,.0f}</span>
-                <span style='font-weight: 700; color: #0369a1;'>×{pos['lots']} 口</span>
-                <span>@{pos['premium']:.0f} 點</span>
-                <span style='font-weight: 700; {premium_style}'>{premium_display} 元</span>
-            </div>
-            """, unsafe_allow_html=True)
+            if is_futures:
+                # 微台期貨顯示格式
+                st.markdown(f"""
+                <div style='padding: 8px 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;'>
+                    <span style='color: #64748b;'>#{i+1}</span>
+                    <span style='background-color: {product_color}20; color: {product_color}; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight: 600;'>{product_label}</span>
+                    <span class='sell-tag'>做空</span>
+                    <span style='font-weight: 700;'>進場 {pos['strike']:,.0f}</span>
+                    <span style='font-weight: 700; color: #0369a1;'>×{pos['lots']} 口</span>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                # 選擇權顯示格式
+                st.markdown(f"""
+                <div style='padding: 8px 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;'>
+                    <span style='color: #64748b;'>#{i+1}</span>
+                    <span style='background-color: {product_color}20; color: {product_color}; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight: 600;'>{product_label}</span>
+                    <span class='{dir_tag}'>{dir_label}</span>
+                    <span class='{type_tag}'>{type_label}</span>
+                    <span style='font-weight: 700;'>{pos['strike']:,.0f}</span>
+                    <span style='font-weight: 700; color: #0369a1;'>×{pos['lots']} 口</span>
+                    <span>@{pos['premium']:.0f} 點</span>
+                    <span style='font-weight: 700; {premium_style}'>{premium_display}</span>
+                </div>
+                """, unsafe_allow_html=True)
         
         with col_minus:
             if st.button("➖", key=f"minus_opt_{i}", help="減少口數", use_container_width=True):
@@ -617,29 +665,38 @@ if st.session_state.option_positions:
 if etf_lots > 0 or st.session_state.option_positions:
     
     # 計算損益函數
-    def calc_option_pnl(pos, settlement_price):
-        """計算單一選擇權倉位的損益"""
+    def calc_position_pnl(pos, settlement_price):
+        """計算單一倉位的損益（支援選擇權和期貨）"""
         strike = pos["strike"]
         lots = pos["lots"]
-        premium = pos["premium"]
+        premium = pos.get("premium", 0)
         
-        # 根據產品類型選擇乘數 (向下兼容舊資料)
+        # 判斷產品類型
         product_type = pos.get("product", "台指")
-        multiplier = MICRO_OPTION_MULTIPLIER if product_type == "微台" else OPTION_MULTIPLIER
+        is_futures = product_type == "微台期貨" or pos.get("type") == "Futures"
         
-        # 計算內含價值
-        if pos["type"] == "Call":
-            intrinsic = max(0.0, settlement_price - strike)
-        else:  # Put
-            intrinsic = max(0.0, strike - settlement_price)
-        
-        # 計算損益 = (內含價值 - 權利金) × 口數 × 乘數
-        if pos["direction"] == "買進":
-            pnl = (intrinsic - premium) * lots * multiplier
-        else:  # 賣出
-            pnl = (premium - intrinsic) * lots * multiplier
-        
-        return pnl
+        if is_futures:
+            # 微台期貨損益計算（做空）
+            # 做空損益 = (進場價 - 結算價) × 口數 × 10元
+            pnl = (strike - settlement_price) * lots * MICRO_OPTION_MULTIPLIER
+            return pnl
+        else:
+            # 選擇權損益計算
+            multiplier = MICRO_OPTION_MULTIPLIER if product_type == "微台" else OPTION_MULTIPLIER
+            
+            # 計算內含價值
+            if pos["type"] == "Call":
+                intrinsic = max(0.0, settlement_price - strike)
+            else:  # Put
+                intrinsic = max(0.0, strike - settlement_price)
+            
+            # 計算損益 = (內含價值 - 權利金) × 口數 × 乘數
+            if pos["direction"] == "買進":
+                pnl = (intrinsic - premium) * lots * multiplier
+            else:  # 賣出
+                pnl = (premium - intrinsic) * lots * multiplier
+            
+            return pnl
     
     def calc_etf_pnl(index_price, base_index, etf_lots, etf_cost, etf_current):
         """計算 00631L 在不同指數價位下的損益"""
@@ -675,8 +732,8 @@ if etf_lots > 0 or st.session_state.option_positions:
         etf_pnl = calc_etf_pnl(p, center, etf_lots, etf_cost, etf_current)
         etf_profits.append(etf_pnl)
         
-        # 選擇權組合損益
-        opt_pnl = sum(calc_option_pnl(pos, p) for pos in st.session_state.option_positions)
+        # 倉位組合損益（選擇權 + 期貨）
+        opt_pnl = sum(calc_position_pnl(pos, p) for pos in st.session_state.option_positions)
         option_profits.append(opt_pnl)
         
         # 總損益
