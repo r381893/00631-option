@@ -131,6 +131,32 @@ st.markdown(
         height: 38px;
         font-size: 15px;
     }
+    
+    /* ===== 手機版響應式設計 ===== */
+    @media (max-width: 768px) {
+        /* 標題縮小 */
+        .title { font-size: 24px; }
+        .subtitle { font-size: 14px; }
+        
+        /* 卡片間距調整 */
+        .card { padding: 12px 15px; margin-bottom: 15px; }
+        .section-title { font-size: 16px; }
+        
+        /* 統計數字調整 */
+        .stat-value { font-size: 20px; }
+        .stat-label { font-size: 12px; }
+        
+        /* 標籤縮小 */
+        .buy-tag, .sell-tag, .call-tag, .put-tag {
+            font-size: 11px;
+            padding: 2px 6px;
+        }
+        
+        /* 隱藏側邊欄提示 */
+        [data-testid="stSidebar"] {
+            min-width: 280px;
+        }
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -219,22 +245,22 @@ if "hedge_ratio" not in st.session_state:
 if "data_loaded" not in st.session_state:
     st.session_state.data_loaded = False
 
-# ********* 初始抓取價格 *********
-if st.session_state.tse_index_price is None:
-    tse_price = get_tse_index_price()
-    if tse_price and tse_price > 1000:
-        st.session_state.tse_index_price = tse_price
-    else:
-        st.session_state.tse_index_price = 23000.0  # 備用值
+# ********* 初始抓取價格 (每次載入都抓取最新價格) *********
+# 加權指數
+tse_price = get_tse_index_price()
+if tse_price and tse_price > 1000:
+    st.session_state.tse_index_price = tse_price
+elif st.session_state.tse_index_price is None:
+    st.session_state.tse_index_price = 23000.0  # 備用值
 
-if st.session_state.etf_current_price is None:
-    etf_price = get_00631L_price()
-    if etf_price:
-        st.session_state.etf_current_price = etf_price
-    else:
-        st.session_state.etf_current_price = 100.0  # 備用值
+# 00631L 現價 - 永遠優先使用 Yahoo Finance 即時價格
+etf_price = get_00631L_price()
+if etf_price:
+    st.session_state.etf_current_price = etf_price
+elif st.session_state.etf_current_price is None:
+    st.session_state.etf_current_price = 100.0  # 備用值
 
-# ********* 自動載入資料 *********
+# ********* 自動載入資料 (現價不從檔案讀取，改用即時抓取) *********
 if not st.session_state.data_loaded:
     saved_data = load_data()
     if saved_data:
@@ -242,10 +268,7 @@ if not st.session_state.data_loaded:
         st.session_state.etf_cost = float(saved_data.get("etf_cost", 0.0))
         st.session_state.hedge_ratio = float(saved_data.get("hedge_ratio", 0.2))
         st.session_state.option_positions = saved_data.get("option_positions", [])
-        # 如果儲存的現價有值則使用，否則用自動抓取的
-        saved_price = saved_data.get("etf_current_price", 0.0)
-        if saved_price > 0:
-            st.session_state.etf_current_price = float(saved_price)
+        # 現價不再從檔案讀取，改用 Yahoo Finance 即時價格
     st.session_state.data_loaded = True
 
 # ======== 側邊欄設定 ========
