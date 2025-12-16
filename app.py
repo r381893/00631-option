@@ -596,8 +596,8 @@ if st.session_state.option_positions:
                 """, unsafe_allow_html=True)
         
         with col_minus:
-            if st.button("➖", key=f"minus_opt_{i}", help="減少口數", use_container_width=True):
-                if st.session_state.option_positions[i]["lots"] > 1:
+            if st.button("➖", key=f"minus_opt_{i}", help="減少口數 (0=暫停計算)", use_container_width=True):
+                if st.session_state.option_positions[i]["lots"] > 0:
                     st.session_state.option_positions[i]["lots"] -= 1
                     save_data({
                         "etf_lots": st.session_state.etf_lots,
