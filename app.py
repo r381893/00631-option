@@ -167,7 +167,8 @@ st.markdown('<div class="title">🛡️ 00631L 避險計算器</div>'
 
 # ======== 常數設定 ========
 POSITIONS_FILE = "hedge_positions.json"
-OPTION_MULTIPLIER = 50.0  # 選擇權每點 50 元
+OPTION_MULTIPLIER = 50.0  # 台指選擇權每點 50 元
+MICRO_OPTION_MULTIPLIER = 10.0  # 微台選擇權每點 10 元
 ETF_SHARES_PER_LOT = 1000  # 1張 = 1000股
 LEVERAGE_00631L = 2.0  # 00631L 為 2 倍槓桿 ETF
 PRICE_STEP = 100.0
@@ -445,12 +446,24 @@ st.markdown("<div class='card'>", unsafe_allow_html=True)
 st.markdown('<div class="section-title">➕ 新增選擇權倉位</div>', unsafe_allow_html=True)
 
 with st.form(key="add_option_form"):
-    col1, col2, col3, col4, col5 = st.columns([1.2, 1.2, 1.5, 1, 1.5])
+    # 第一行：產品類型選擇
+    col_product, col_type, col_direction = st.columns([1.5, 1.2, 1.2])
     
-    with col1:
+    with col_product:
+        opt_product = st.selectbox("產品", ["台指選擇權 (50元/點)", "微台選擇權 (10元/點)"], key="new_opt_product")
+    with col_type:
         opt_type = st.selectbox("類型", ["買權 (Call)", "賣權 (Put)"], key="new_opt_type")
-    with col2:
-        opt_direction = st.radio("方向", ["買進", "賣出"], horizontal=True, key="new_opt_direction")
+    with col_direction:
+        # 微台只能賣出
+        if "微台" in opt_product:
+            opt_direction = "賣出"
+            st.markdown("<div style='padding: 8px; background-color: #fee2e2; border-radius: 6px; text-align: center; margin-top: 24px;'><b style='color: #dc2626;'>僅賣出</b></div>", unsafe_allow_html=True)
+        else:
+            opt_direction = st.radio("方向", ["買進", "賣出"], horizontal=True, key="new_opt_direction")
+    
+    # 第二行：履約價、口數、權利金
+    col3, col4, col5 = st.columns([1.5, 1, 1.5])
+    
     with col3:
         # 預設履約價為當前指數的整數
         default_strike = round(center / 100) * 100
@@ -463,9 +476,15 @@ with st.form(key="add_option_form"):
     submitted = st.form_submit_button("✅ 新增倉位", use_container_width=True)
     
     if submitted:
+        # 判斷產品類型
+        is_micro = "微台" in opt_product
+        # 微台強制為賣出
+        final_direction = "賣出" if is_micro else opt_direction
+        
         new_position = {
+            "product": "微台" if is_micro else "台指",
             "type": "Call" if "Call" in opt_type else "Put",
-            "direction": opt_direction,
+            "direction": final_direction,
             "strike": float(opt_strike),
             "lots": int(opt_lots),
             "premium": float(opt_premium)
@@ -494,13 +513,20 @@ if st.session_state.option_positions:
     total_premium_out = 0.0  # 支出（買進）
     
     for i, pos in enumerate(st.session_state.option_positions):
-        col_info, col_delete = st.columns([5, 1])
+        # 使用 4 欄佈局：資訊、減少、增加、刪除
+        col_info, col_minus, col_plus, col_delete = st.columns([6, 0.5, 0.5, 0.8])
+        
+        # 判斷產品類型 (向下兼容舊資料)
+        product_type = pos.get("product", "台指")
+        multiplier = MICRO_OPTION_MULTIPLIER if product_type == "微台" else OPTION_MULTIPLIER
+        product_label = "微台" if product_type == "微台" else "台指"
+        product_color = "#8b5cf6" if product_type == "微台" else "#0891b2"  # 微台紫色, 台指青色
         
         type_tag = "call-tag" if pos["type"] == "Call" else "put-tag"
         type_label = "買權" if pos["type"] == "Call" else "賣權"
         dir_tag = "buy-tag" if pos["direction"] == "買進" else "sell-tag"
         
-        premium_value = pos["premium"] * pos["lots"] * OPTION_MULTIPLIER
+        premium_value = pos["premium"] * pos["lots"] * multiplier
         if pos["direction"] == "賣出":
             total_premium_in += premium_value
             premium_display = f"+{premium_value:,.0f}"
@@ -512,19 +538,45 @@ if st.session_state.option_positions:
         
         with col_info:
             st.markdown(f"""
-            <div style='padding: 8px 0; display: flex; align-items: center; gap: 10px;'>
+            <div style='padding: 8px 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;'>
                 <span style='color: #64748b;'>#{i+1}</span>
+                <span style='background-color: {product_color}20; color: {product_color}; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight: 600;'>{product_label}</span>
                 <span class='{dir_tag}'>{pos['direction']}</span>
                 <span class='{type_tag}'>{type_label}</span>
                 <span style='font-weight: 700;'>{pos['strike']:,.0f}</span>
-                <span>×{pos['lots']} 口</span>
+                <span style='font-weight: 700; color: #0369a1;'>×{pos['lots']} 口</span>
                 <span>@{pos['premium']:.0f} 點</span>
-                <span style='margin-left: auto; font-weight: 700; {premium_style}'>{premium_display} 元</span>
+                <span style='font-weight: 700; {premium_style}'>{premium_display} 元</span>
             </div>
             """, unsafe_allow_html=True)
         
+        with col_minus:
+            if st.button("➖", key=f"minus_opt_{i}", help="減少口數", use_container_width=True):
+                if st.session_state.option_positions[i]["lots"] > 1:
+                    st.session_state.option_positions[i]["lots"] -= 1
+                    save_data({
+                        "etf_lots": st.session_state.etf_lots,
+                        "etf_cost": st.session_state.etf_cost,
+                        "etf_current_price": st.session_state.etf_current_price,
+                        "hedge_ratio": st.session_state.hedge_ratio,
+                        "option_positions": st.session_state.option_positions
+                    })
+                    st.rerun()
+        
+        with col_plus:
+            if st.button("➕", key=f"plus_opt_{i}", help="增加口數", use_container_width=True):
+                st.session_state.option_positions[i]["lots"] += 1
+                save_data({
+                    "etf_lots": st.session_state.etf_lots,
+                    "etf_cost": st.session_state.etf_cost,
+                    "etf_current_price": st.session_state.etf_current_price,
+                    "hedge_ratio": st.session_state.hedge_ratio,
+                    "option_positions": st.session_state.option_positions
+                })
+                st.rerun()
+        
         with col_delete:
-            if st.button("刪除", key=f"del_opt_{i}", type="secondary"):
+            if st.button("🗑️", key=f"del_opt_{i}", type="secondary", help="刪除倉位", use_container_width=True):
                 st.session_state.option_positions.pop(i)
                 save_data({
                     "etf_lots": st.session_state.etf_lots,
@@ -571,6 +623,10 @@ if etf_lots > 0 or st.session_state.option_positions:
         lots = pos["lots"]
         premium = pos["premium"]
         
+        # 根據產品類型選擇乘數 (向下兼容舊資料)
+        product_type = pos.get("product", "台指")
+        multiplier = MICRO_OPTION_MULTIPLIER if product_type == "微台" else OPTION_MULTIPLIER
+        
         # 計算內含價值
         if pos["type"] == "Call":
             intrinsic = max(0.0, settlement_price - strike)
@@ -579,9 +635,9 @@ if etf_lots > 0 or st.session_state.option_positions:
         
         # 計算損益 = (內含價值 - 權利金) × 口數 × 乘數
         if pos["direction"] == "買進":
-            pnl = (intrinsic - premium) * lots * OPTION_MULTIPLIER
+            pnl = (intrinsic - premium) * lots * multiplier
         else:  # 賣出
-            pnl = (premium - intrinsic) * lots * OPTION_MULTIPLIER
+            pnl = (premium - intrinsic) * lots * multiplier
         
         return pnl
     
