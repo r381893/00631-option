@@ -472,140 +472,85 @@ if etf_lots > 0:
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ======== 新增倉位 ========
-# 使用 session_state 來追蹤方向和類型（用於顯示顏色提示）
-if "new_opt_direction" not in st.session_state:
-    st.session_state.new_opt_direction = "買進"
-if "new_opt_type" not in st.session_state:
-    st.session_state.new_opt_type = "買權 (Call)"
-if "new_opt_product" not in st.session_state:
-    st.session_state.new_opt_product = "台指選擇權 (50元/點)"
+st.markdown("<div class='card'>", unsafe_allow_html=True)
+st.markdown('<div class="section-title">➕ 新增倉位</div>', unsafe_allow_html=True)
 
-# 判斷是否為微台期貨
-is_micro_futures_preview = "微台期貨" in st.session_state.new_opt_product
+# 產品類型選擇
+opt_product = st.selectbox("產品", ["台指選擇權 (50元/點)", "微台期貨 (10元/點)"], key="new_opt_product")
+is_micro_futures = "微台期貨" in opt_product
 
-# 根據選擇決定顏色
-is_buying = st.session_state.new_opt_direction == "買進"
-is_call = "Call" in st.session_state.new_opt_type
+if is_micro_futures:
+    # ===== 微台期貨介面 =====
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        default_strike = round(center / 100) * 100
+        opt_strike = st.number_input("進場價", min_value=0.0, step=100.0, value=float(default_strike), key="micro_strike")
+    with col2:
+        opt_lots = st.number_input("口數", min_value=1, step=1, value=1, key="micro_lots")
+    
+    st.caption("📌 微台期貨：做空方向，一點 10 元")
+    
+    if st.button("✅ 新增微台期貨倉位", use_container_width=True, key="add_micro"):
+        new_position = {
+            "product": "微台期貨",
+            "type": "Futures",
+            "direction": "做空",
+            "strike": float(opt_strike),
+            "lots": int(opt_lots),
+            "premium": 0.0
+        }
+        st.session_state.option_positions.append(new_position)
+        save_data({
+            "etf_lots": st.session_state.etf_lots,
+            "etf_cost": st.session_state.etf_cost,
+            "etf_current_price": st.session_state.etf_current_price,
+            "hedge_ratio": st.session_state.hedge_ratio,
+            "option_positions": st.session_state.option_positions
+        })
+        st.success("已新增微台期貨倉位")
+        st.rerun()
 
-if is_micro_futures_preview:
-    box_bg = "#f3e8ff"  # 淡紫
-    box_border = "#8b5cf6"
-    status_text = "🟣 微台期貨 - 做空避險"
 else:
-    if is_buying:
-        box_bg = "#ffe4ec"  # 粉紅
-        box_border = "#ff69b4"
-    else:
-        box_bg = "#d4edda"  # 淡綠
-        box_border = "#28a745"
+    # ===== 台指選擇權介面 =====
+    col1, col2 = st.columns([1.2, 1.2])
     
-    type_emoji = "📈" if is_call else "📉"
-    type_text = "買權 Call" if is_call else "賣權 Put"
-    dir_emoji = "🔴" if is_buying else "🟢"
-    dir_text = "買進" if is_buying else "賣出"
-    premium_hint = "支付權利金" if is_buying else "收取權利金"
-    status_text = f"{dir_emoji} {dir_text} {type_emoji} {type_text} - {premium_hint}"
-
-# 動態注入 CSS 樣式到 container border
-st.markdown(f"""
-<style>
-    /* 針對有邊框的 container 進行樣式覆蓋 */
-    div[data-testid="stVerticalBlockBorderWrapper"] {{
-        background: {box_bg} !important;
-        border: 3px solid {box_border} !important;
-        border-radius: 12px !important;
-    }}
-    div[data-testid="stVerticalBlockBorderWrapper"] > div {{
-        background: transparent !important;
-    }}
-</style>
-""", unsafe_allow_html=True)
-
-# 使用 container 搭配 border 來創建可變色的框框
-with st.container(border=True):
-    # 狀態提示
-    st.markdown(f"""
-    <div style='font-size: 18px; font-weight: 800; color: {box_border}; text-align: center; padding: 10px 0; margin-bottom: 10px;'>
-        {status_text}
-    </div>
-    <div class="section-title">➕ 新增倉位</div>
-    """, unsafe_allow_html=True)
+    with col1:
+        opt_type = st.selectbox("類型", ["買權 (Call)", "賣權 (Put)"], key="new_opt_type")
+    with col2:
+        opt_direction = st.radio("方向", ["買進", "賣出"], horizontal=True, key="new_opt_direction")
     
-    # 產品類型選擇
-    opt_product = st.selectbox("產品", ["台指選擇權 (50元/點)", "微台期貨 (10元/點)"], key="new_opt_product")
-    is_micro_futures = "微台期貨" in opt_product
+    col3, col4, col5 = st.columns([1.5, 1, 1.5])
+    
+    with col3:
+        default_strike = round(center / 100) * 100
+        opt_strike = st.number_input("履約價", min_value=0.0, step=100.0, value=float(default_strike), key="opt_strike")
+    with col4:
+        opt_lots = st.number_input("口數", min_value=1, step=1, value=1, key="opt_lots")
+    with col5:
+        opt_premium = st.number_input("權利金 (點)", min_value=0.0, step=1.0, value=0.0, key="opt_premium")
+    
+    if st.button("✅ 新增選擇權倉位", use_container_width=True, key="add_option"):
+        new_position = {
+            "product": "台指",
+            "type": "Call" if "Call" in opt_type else "Put",
+            "direction": opt_direction,
+            "strike": float(opt_strike),
+            "lots": int(opt_lots),
+            "premium": float(opt_premium)
+        }
+        st.session_state.option_positions.append(new_position)
+        save_data({
+            "etf_lots": st.session_state.etf_lots,
+            "etf_cost": st.session_state.etf_cost,
+            "etf_current_price": st.session_state.etf_current_price,
+            "hedge_ratio": st.session_state.hedge_ratio,
+            "option_positions": st.session_state.option_positions
+        })
+        st.success("已新增選擇權倉位")
+        st.rerun()
 
-    if is_micro_futures:
-        # ===== 微台期貨介面 =====
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
-            default_strike = round(center / 100) * 100
-            opt_strike = st.number_input("進場價", min_value=0.0, step=100.0, value=float(default_strike), key="micro_strike")
-        with col2:
-            opt_lots = st.number_input("口數", min_value=1, step=1, value=1, key="micro_lots")
-        
-        st.caption("📌 微台期貨：做空方向，一點 10 元")
-        
-        if st.button("✅ 新增微台期貨倉位", use_container_width=True, key="add_micro"):
-            new_position = {
-                "product": "微台期貨",
-                "type": "Futures",
-                "direction": "做空",
-                "strike": float(opt_strike),
-                "lots": int(opt_lots),
-                "premium": 0.0
-            }
-            st.session_state.option_positions.append(new_position)
-            save_data({
-                "etf_lots": st.session_state.etf_lots,
-                "etf_cost": st.session_state.etf_cost,
-                "etf_current_price": st.session_state.etf_current_price,
-                "hedge_ratio": st.session_state.hedge_ratio,
-                "option_positions": st.session_state.option_positions
-            })
-            st.success("已新增微台期貨倉位")
-            st.rerun()
-
-    else:
-        # ===== 台指選擇權介面 =====
-        col1, col2 = st.columns([1.2, 1.2])
-        
-        with col1:
-            opt_type = st.selectbox("類型", ["買權 (Call)", "賣權 (Put)"], key="new_opt_type")
-        with col2:
-            opt_direction = st.radio("方向", ["買進", "賣出"], horizontal=True, key="new_opt_direction")
-        
-        col3, col4, col5 = st.columns([1.5, 1, 1.5])
-        
-        with col3:
-            default_strike = round(center / 100) * 100
-            opt_strike = st.number_input("履約價", min_value=0.0, step=100.0, value=float(default_strike), key="opt_strike")
-        with col4:
-            opt_lots = st.number_input("口數", min_value=1, step=1, value=1, key="opt_lots")
-        with col5:
-            opt_premium = st.number_input("權利金 (點)", min_value=0.0, step=1.0, value=0.0, key="opt_premium")
-        
-        if st.button("✅ 新增選擇權倉位", use_container_width=True, key="add_option"):
-            new_position = {
-                "product": "台指",
-                "type": "Call" if "Call" in opt_type else "Put",
-                "direction": opt_direction,
-                "strike": float(opt_strike),
-                "lots": int(opt_lots),
-                "premium": float(opt_premium)
-            }
-            st.session_state.option_positions.append(new_position)
-            save_data({
-                "etf_lots": st.session_state.etf_lots,
-                "etf_cost": st.session_state.etf_cost,
-                "etf_current_price": st.session_state.etf_current_price,
-                "hedge_ratio": st.session_state.hedge_ratio,
-                "option_positions": st.session_state.option_positions
-            })
-            st.success("已新增選擇權倉位")
-            st.rerun()
-
+st.markdown("</div>", unsafe_allow_html=True)
 
 # ======== 現有倉位 ========
 if st.session_state.option_positions:
