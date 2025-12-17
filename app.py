@@ -166,7 +166,6 @@ st.markdown('<div class="title">🛡️ 00631L 避險計算器</div>'
             '<div class="subtitle">使用選擇權組合策略保護 00631L 持股</div>', unsafe_allow_html=True)
 
 # ======== 常數設定 ========
-POSITIONS_FILE = "hedge_positions.json"
 OPTION_MULTIPLIER = 50.0  # 台指選擇權每點 50 元
 MICRO_OPTION_MULTIPLIER = 10.0  # 微台選擇權每點 10 元
 ETF_SHARES_PER_LOT = 1000  # 1張 = 1000股
@@ -176,17 +175,16 @@ PRICE_STEP = 100.0
 # ======== 網路資料抓取函式 ========
 @st.cache_data(ttl=300)
 def get_tse_index_price(ticker="^TWII"):
-    """從 Yahoo Finance 獲取加權指數的最新價格 (使用 history 更穩定)"""
+    """從 Yahoo Finance 獲取加權指數的最新價格"""
     try:
         tse_ticker = yf.Ticker(ticker)
-        # 使用 history 取得最近 5 天的資料，比 info 更穩定
         hist = tse_ticker.history(period="5d")
         if not hist.empty:
             price = float(hist['Close'].iloc[-1])
             if price > 1000:
                 return price
         return None
-    except Exception as e:
+    except Exception:
         return None
 
 @st.cache_data(ttl=300)
@@ -200,30 +198,63 @@ def get_00631L_price():
             if price > 0:
                 return price
         return None
-    except Exception as e:
+    except Exception:
         return None
 
-# ======== 載入與儲存函式 ========
-def load_data(fname=POSITIONS_FILE):
-    """載入倉位資料"""
-    if os.path.exists(fname):
-        try:
-            with open(fname, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            return data
-        except Exception as e:
-            st.error(f"讀取儲存檔失敗: {e}", icon="❌")
-            return None
-    return None
+# ======== Firebase 設定 ========
+FIREBASE_DATABASE_URL = "https://l-op-bf09b-default-rtdb.asia-southeast1.firebasedatabase.app/"
 
-def save_data(data, fname=POSITIONS_FILE):
-    """儲存倉位資料"""
+# 初始化 Firebase (只執行一次)
+import firebase_admin
+from firebase_admin import credentials, db
+import os
+
+if "firebase_initialized" not in st.session_state:
     try:
-        with open(fname, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        # 優先嘗試本機開發：使用 JSON 檔案
+        if os.path.exists("firebase_key.json"):
+            cred = credentials.Certificate("firebase_key.json")
+        # Streamlit Cloud：從 secrets 取得憑證
+        elif hasattr(st, 'secrets') and 'firebase' in st.secrets:
+            cred_dict = dict(st.secrets["firebase"])
+            cred = credentials.Certificate(cred_dict)
+        else:
+            raise FileNotFoundError("找不到 Firebase 憑證")
+        
+        firebase_admin.initialize_app(cred, {
+            'databaseURL': FIREBASE_DATABASE_URL
+        })
+        st.session_state.firebase_initialized = True
+    except ValueError:
+        # 已經初始化過
+        st.session_state.firebase_initialized = True
+    except Exception as e:
+        st.error(f"Firebase 初始化失敗: {e}")
+        st.session_state.firebase_initialized = False
+
+# ======== 載入與儲存函式 (Firebase) ========
+def load_data():
+    """從 Firebase 載入倉位資料"""
+    if not st.session_state.get("firebase_initialized", False):
+        return None
+    try:
+        ref = db.reference('hedge_positions')
+        data = ref.get()
+        return data
+    except Exception as e:
+        st.error(f"Firebase 讀取失敗: {e}")
+        return None
+
+def save_data(data):
+    """儲存倉位資料到 Firebase"""
+    if not st.session_state.get("firebase_initialized", False):
+        return False
+    try:
+        ref = db.reference('hedge_positions')
+        ref.set(data)
         return True
     except Exception as e:
-        st.error(f"儲存失敗: {e}", icon="❌")
+        st.error(f"Firebase 儲存失敗: {e}")
         return False
 
 # ======== 初始化 session state ========
@@ -373,80 +404,28 @@ if (etf_lots != old_etf_lots or
 
 # ======== 主頁面 ========
 
-# ======== 檔案操作區 ========
-with st.container():
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.markdown('<div class="section-title">📂 檔案操作</div>', unsafe_allow_html=True)
-    
-    # 第一行：下載和上傳
-    col_download, col_upload = st.columns(2)
-    
-    with col_download:
-        # 準備下載資料
-        download_data = {
-            "etf_lots": st.session_state.etf_lots,
-            "etf_cost": st.session_state.etf_cost,
+# ======== 操作按鈕 ========
+col1, col2 = st.columns(2)
+with col1:
+    if st.button("🔄 重新整理價格", use_container_width=True, help="重新抓取最新的 ETF 和指數價格"):
+        st.cache_data.clear()
+        st.success("✅ 已清除快取，將重新載入價格")
+        st.rerun()
+with col2:
+    if st.button("🧹 清空所有倉位", use_container_width=True):
+        st.session_state.option_positions = []
+        st.session_state.etf_lots = 0.0
+        st.session_state.etf_cost = 0.0
+        st.session_state.hedge_ratio = 0.2
+        save_data({
+            "etf_lots": 0.0,
+            "etf_cost": 0.0,
             "etf_current_price": st.session_state.etf_current_price,
-            "hedge_ratio": st.session_state.hedge_ratio,
-            "option_positions": st.session_state.option_positions
-        }
-        json_str = json.dumps(download_data, ensure_ascii=False, indent=2)
-        
-        st.download_button(
-            label="📥 下載備份",
-            data=json_str,
-            file_name="hedge_positions_backup.json",
-            mime="application/json",
-            use_container_width=True,
-            help="下載目前的倉位資料到您的電腦"
-        )
-    
-    with col_upload:
-        uploaded_file = st.file_uploader(
-            "📤 上傳備份",
-            type=["json"],
-            label_visibility="collapsed",
-            help="上傳之前下載的 JSON 備份檔",
-            key="json_uploader"
-        )
-        
-        if uploaded_file is not None:
-            try:
-                # 讀取並解析檔案
-                uploaded_data = json.loads(uploaded_file.getvalue().decode("utf-8"))
-                
-                # 顯示預覽
-                preview_positions = len(uploaded_data.get("option_positions", []))
-                preview_lots = uploaded_data.get("etf_lots", 0)
-                st.caption(f"📋 {preview_lots:.1f} 張, {preview_positions} 筆倉位")
-                
-                if st.button("✅ 確認載入", key="confirm_load"):
-                    st.session_state.etf_lots = float(uploaded_data.get("etf_lots", 0.0))
-                    st.session_state.etf_cost = float(uploaded_data.get("etf_cost", 0.0))
-                    st.session_state.hedge_ratio = float(uploaded_data.get("hedge_ratio", 0.2))
-                    st.session_state.option_positions = uploaded_data.get("option_positions", [])
-                    st.success("✅ 載入成功！請關閉上傳框")
-            except Exception as e:
-                st.error(f"❌ 格式錯誤")
-    
-    st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
-    
-    # 第二行：其他操作
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("🔄 重新整理價格", use_container_width=True, help="重新抓取最新的 ETF 和指數價格"):
-            st.cache_data.clear()
-            st.success("✅ 已清除快取，將重新載入價格")
-            st.rerun()
-    with col2:
-        if st.button("🧹 清空所有倉位", use_container_width=True):
-            st.session_state.option_positions = []
-            st.session_state.etf_lots = 0.0
-            st.session_state.etf_cost = 0.0
-            st.session_state.hedge_ratio = 0.2
-            st.success("已清空所有資料")
-            st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
+            "hedge_ratio": 0.2,
+            "option_positions": []
+        })
+        st.success("已清空所有資料")
+        st.rerun()
 
 # ======== 00631L 庫存摘要 ========
 if etf_lots > 0:

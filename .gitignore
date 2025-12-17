@@ -1,6 +1,11 @@
 # 儲存檔案 - 保護本地資料不被覆蓋
 hedge_positions.json
 
+# Firebase 金鑰 (敏感資料，不可上傳)
+firebase_key.json
+streamlit_secrets.toml
+convert_key.py
+
 # Python
 __pycache__/
 *.py[cod]

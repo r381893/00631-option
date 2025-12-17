@@ -6,4 +6,4 @@ numpy
 matplotlib
 requests
 yfinance
-
+firebase-admin
