@@ -442,20 +442,47 @@ if etf_lots > 0:
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ======== 新增倉位 ========
-# 使用 session_state 來追蹤方向（用於顯示顏色提示）
+# 使用 session_state 來追蹤方向和類型（用於顯示顏色提示）
 if "new_opt_direction" not in st.session_state:
     st.session_state.new_opt_direction = "買進"
+if "new_opt_type" not in st.session_state:
+    st.session_state.new_opt_type = "買權 (Call)"
+if "new_opt_product" not in st.session_state:
+    st.session_state.new_opt_product = "台指選擇權 (50元/點)"
 
-# 根據方向決定顏色和提示
+# 判斷是否為微台期貨
+is_micro_futures_preview = "微台期貨" in st.session_state.new_opt_product
+
+# 根據選擇決定顏色和提示
 is_buying = st.session_state.new_opt_direction == "買進"
-direction_bg = "#ffe4ec" if is_buying else "#d4edda"  # 粉紅 vs 淡綠
-direction_border = "#ff69b4" if is_buying else "#28a745"  # 深粉紅 vs 深綠
-direction_text = "🔴 買進模式 - 支付權利金" if is_buying else "🟢 賣出模式 - 收取權利金"
+is_call = "Call" in st.session_state.new_opt_type
+
+if is_micro_futures_preview:
+    # 微台期貨 - 紫色
+    header_bg = "#f3e8ff"
+    header_border = "#8b5cf6"
+    header_text = "🟣 微台期貨 - 做空避險"
+else:
+    # 選擇權 - 根據方向和類型決定顏色
+    if is_buying:
+        header_bg = "#ffe4ec"  # 粉紅
+        header_border = "#ff69b4"
+    else:
+        header_bg = "#d4edda"  # 淡綠
+        header_border = "#28a745"
+    
+    # 組合類型和方向的文字
+    type_emoji = "📈" if is_call else "📉"
+    type_text = "買權 Call" if is_call else "賣權 Put"
+    dir_emoji = "🔴" if is_buying else "🟢"
+    dir_text = "買進" if is_buying else "賣出"
+    premium_hint = "支付權利金" if is_buying else "收取權利金"
+    header_text = f"{dir_emoji} {dir_text} {type_emoji} {type_text} - {premium_hint}"
 
 st.markdown(f"""
-<div style='background: {direction_bg}; border: 3px solid {direction_border}; border-radius: 12px; padding: 18px 22px; margin-bottom: 20px; box-shadow: 0 8px 30px rgba(11,92,255,0.08);'>
-    <div style='font-size: 20px; font-weight: 800; color: {direction_border}; margin-bottom: 15px; text-align: center;'>
-        {direction_text}
+<div style='background: {header_bg}; border: 3px solid {header_border}; border-radius: 12px; padding: 18px 22px; margin-bottom: 20px; box-shadow: 0 8px 30px rgba(11,92,255,0.08);'>
+    <div style='font-size: 20px; font-weight: 800; color: {header_border}; margin-bottom: 15px; text-align: center;'>
+        {header_text}
     </div>
     <div class="section-title">➕ 新增倉位</div>
 </div>
