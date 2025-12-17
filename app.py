@@ -403,24 +403,31 @@ with st.container():
     
     with col_upload:
         uploaded_file = st.file_uploader(
-            "� 上傳備份",
+            "📤 上傳備份",
             type=["json"],
             label_visibility="collapsed",
-            help="上傳之前下載的 JSON 備份檔"
+            help="上傳之前下載的 JSON 備份檔",
+            key="json_uploader"
         )
         
         if uploaded_file is not None:
             try:
-                uploaded_data = json.load(uploaded_file)
-                st.session_state.etf_lots = float(uploaded_data.get("etf_lots", 0.0))
-                st.session_state.etf_cost = float(uploaded_data.get("etf_cost", 0.0))
-                st.session_state.etf_current_price = float(uploaded_data.get("etf_current_price", st.session_state.etf_current_price))
-                st.session_state.hedge_ratio = float(uploaded_data.get("hedge_ratio", 0.2))
-                st.session_state.option_positions = uploaded_data.get("option_positions", [])
-                st.success("✅ 已載入備份資料！")
-                st.rerun()
+                # 讀取並解析檔案
+                uploaded_data = json.loads(uploaded_file.getvalue().decode("utf-8"))
+                
+                # 顯示預覽
+                preview_positions = len(uploaded_data.get("option_positions", []))
+                preview_lots = uploaded_data.get("etf_lots", 0)
+                st.caption(f"📋 {preview_lots:.1f} 張, {preview_positions} 筆倉位")
+                
+                if st.button("✅ 確認載入", key="confirm_load"):
+                    st.session_state.etf_lots = float(uploaded_data.get("etf_lots", 0.0))
+                    st.session_state.etf_cost = float(uploaded_data.get("etf_cost", 0.0))
+                    st.session_state.hedge_ratio = float(uploaded_data.get("hedge_ratio", 0.2))
+                    st.session_state.option_positions = uploaded_data.get("option_positions", [])
+                    st.success("✅ 載入成功！請關閉上傳框")
             except Exception as e:
-                st.error(f"❌ 載入失敗：{e}")
+                st.error(f"❌ 格式錯誤")
     
     st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
     
