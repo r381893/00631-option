@@ -20,150 +20,263 @@ st.set_page_config(page_title="00631L 避險計算器", layout="wide")
 st.markdown(
     """
     <style>
-    /* 基礎字體設定 */
+    /* ===== 基礎設定 ===== */
     html, body, .stApp, .stApp * {
-        font-family: 'Microsoft JhengHei', 'DFKai-SB', sans-serif !important;
-        font-size: 15px;
+        font-family: 'Microsoft JhengHei', 'DFKai-SB', -apple-system, BlinkMacSystemFont, sans-serif !important;
     }
     
+    /* ===== 現代化配色 ===== */
     :root {
-        --card-bg: #ffffff;
-        --page-bg: #f3f6fb;
-        --accent: #0b5cff;
-        --muted: #6b7280;
+        --primary: #6366f1;
+        --primary-dark: #4f46e5;
+        --secondary: #8b5cf6;
         --success: #10b981;
         --danger: #ef4444;
+        --warning: #f59e0b;
+        --card-bg: rgba(255, 255, 255, 0.95);
+        --glass-bg: rgba(255, 255, 255, 0.7);
+        --text-primary: #1e293b;
+        --text-secondary: #64748b;
+        --border-color: rgba(99, 102, 241, 0.1);
+        --shadow-sm: 0 2px 8px rgba(99, 102, 241, 0.08);
+        --shadow-md: 0 8px 24px rgba(99, 102, 241, 0.12);
+        --shadow-lg: 0 16px 48px rgba(99, 102, 241, 0.15);
     }
-    body { background-color: var(--page-bg); }
     
-    /* 主標題 */
+    /* ===== 背景漸層 ===== */
+    .stApp {
+        background: linear-gradient(135deg, #f5f7ff 0%, #e8ecff 50%, #f0f4ff 100%);
+    }
+    
+    /* ===== 主標題區域 ===== */
+    .main-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 24px 28px;
+        border-radius: 16px;
+        margin-bottom: 24px;
+        box-shadow: var(--shadow-lg);
+        position: relative;
+        overflow: hidden;
+    }
+    .main-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 100%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+    }
     .title {
-        font-size: 32px;
+        font-size: 28px;
         font-weight: 800;
-        color: #04335a;
-        margin-bottom: 4px;
-        padding-top: 10px;
+        color: white;
+        margin: 0;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        position: relative;
+        z-index: 1;
     }
     .subtitle {
-        color: var(--muted);
-        margin-top: -8px;
-        margin-bottom: 20px;
-        font-size: 16px;
+        color: rgba(255,255,255,0.85);
+        margin: 6px 0 0 0;
+        font-size: 15px;
+        position: relative;
+        z-index: 1;
     }
     
-    /* 卡片樣式 */
+    /* ===== 玻璃擬態卡片 ===== */
     .card {
         background: var(--card-bg);
-        padding: 18px 22px;
-        border-radius: 12px;
-        box-shadow: 0 8px 30px rgba(11,92,255,0.08);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        padding: 20px 24px;
+        border-radius: 16px;
+        border: 1px solid var(--border-color);
+        box-shadow: var(--shadow-md);
         margin-bottom: 20px;
+        transition: all 0.3s ease;
+    }
+    .card:hover {
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-2px);
     }
     
-    /* 區塊標題 */
+    /* ===== 區塊標題 ===== */
     .section-title {
-        font-size: 18px;
+        font-size: 17px;
         font-weight: 700;
-        color: #04335a;
-        margin-bottom: 12px;
-        border-bottom: 2px solid #eaeef7;
-        padding-bottom: 5px;
+        color: var(--text-primary);
+        margin-bottom: 16px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid;
+        border-image: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%) 1;
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
     
-    /* 統計卡片 */
+    /* ===== 統計卡片 ===== */
     .stat-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
         color: white;
-        padding: 15px 20px;
-        border-radius: 10px;
-        margin-bottom: 10px;
+        padding: 18px 22px;
+        border-radius: 14px;
+        box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+        transition: all 0.3s ease;
+    }
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 28px rgba(99, 102, 241, 0.4);
     }
     .stat-value {
-        font-size: 24px;
-        font-weight: 700;
+        font-size: 26px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
     }
     .stat-label {
         font-size: 13px;
         opacity: 0.9;
+        margin-top: 4px;
     }
     
-    /* 損益顏色 */
-    .profit { color: #10b981; font-weight: bold; }
-    .loss { color: #ef4444; font-weight: bold; }
+    /* ===== 損益顏色 ===== */
+    .profit { 
+        color: var(--success); 
+        font-weight: 700;
+        text-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+    }
+    .loss { 
+        color: var(--danger); 
+        font-weight: 700;
+        text-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+    }
     
-    /* 倉位標籤 */
+    /* ===== 標籤樣式 ===== */
     .buy-tag { 
-        background-color: #dbeafe; 
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
         color: #1d4ed8; 
-        padding: 2px 8px; 
-        border-radius: 4px; 
-        font-weight: bold;
-        font-size: 13px;
+        padding: 4px 10px; 
+        border-radius: 6px; 
+        font-weight: 600;
+        font-size: 12px;
+        box-shadow: 0 2px 4px rgba(29, 78, 216, 0.15);
     }
     .sell-tag { 
-        background-color: #fee2e2; 
+        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
         color: #dc2626; 
-        padding: 2px 8px; 
-        border-radius: 4px; 
-        font-weight: bold;
-        font-size: 13px;
+        padding: 4px 10px; 
+        border-radius: 6px; 
+        font-weight: 600;
+        font-size: 12px;
+        box-shadow: 0 2px 4px rgba(220, 38, 38, 0.15);
     }
     .call-tag {
-        background-color: #fef3c7;
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
         color: #d97706;
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 13px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
     }
     .put-tag {
-        background-color: #e0e7ff;
+        background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
         color: #4338ca;
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 13px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
     }
     
-    hr { border: 0; height: 1px; background: #eaeef7; margin: 14px 0; }
+    /* ===== 分隔線 ===== */
+    hr { 
+        border: 0; 
+        height: 1px; 
+        background: linear-gradient(90deg, transparent 0%, var(--border-color) 50%, transparent 100%);
+        margin: 16px 0; 
+    }
     
-    /* 按鈕樣式 */
-    .stButton>button {
-        border-radius: 8px;
-        height: 38px;
-        font-size: 15px;
+    /* ===== 按鈕樣式 ===== */
+    .stButton > button {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 10px 20px;
+        font-weight: 600;
+        font-size: 14px;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        transition: all 0.3s ease;
+    }
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+    }
+    .stButton > button:active {
+        transform: translateY(0);
+    }
+    
+    /* ===== 輸入框美化 ===== */
+    .stNumberInput > div > div > input,
+    .stSelectbox > div > div > div,
+    .stTextInput > div > div > input {
+        border-radius: 10px !important;
+        border: 2px solid var(--border-color) !important;
+        transition: all 0.3s ease !important;
+    }
+    .stNumberInput > div > div > input:focus,
+    .stSelectbox > div > div > div:focus,
+    .stTextInput > div > div > input:focus {
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+    }
+    
+    /* ===== 側邊欄美化 ===== */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #f8faff 0%, #eef2ff 100%);
+    }
+    [data-testid="stSidebar"] .stMarkdown h2 {
+        color: var(--primary);
+        font-size: 16px;
+        font-weight: 700;
+    }
+    
+    /* ===== Metric 美化 ===== */
+    [data-testid="stMetric"] {
+        background: var(--glass-bg);
+        padding: 12px 16px;
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+    }
+    [data-testid="stMetricValue"] {
+        font-weight: 700;
+        color: var(--text-primary);
     }
     
     /* ===== 手機版響應式設計 ===== */
     @media (max-width: 768px) {
-        /* 標題縮小 */
-        .title { font-size: 24px; }
-        .subtitle { font-size: 14px; }
-        
-        /* 卡片間距調整 */
-        .card { padding: 12px 15px; margin-bottom: 15px; }
-        .section-title { font-size: 16px; }
-        
-        /* 統計數字調整 */
-        .stat-value { font-size: 20px; }
-        .stat-label { font-size: 12px; }
-        
-        /* 標籤縮小 */
+        .main-header { padding: 18px 20px; }
+        .title { font-size: 22px; }
+        .subtitle { font-size: 13px; }
+        .card { padding: 14px 18px; }
+        .section-title { font-size: 15px; }
+        .stat-value { font-size: 22px; }
         .buy-tag, .sell-tag, .call-tag, .put-tag {
             font-size: 11px;
-            padding: 2px 6px;
+            padding: 3px 8px;
         }
-        
-        /* 隱藏側邊欄提示 */
-        [data-testid="stSidebar"] {
-            min-width: 280px;
-        }
+        [data-testid="stSidebar"] { min-width: 280px; }
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-st.markdown('<div class="title">🛡️ 00631L 避險計算器</div>'
-            '<div class="subtitle">使用選擇權組合策略保護 00631L 持股</div>', unsafe_allow_html=True)
+st.markdown('''
+<div class="main-header">
+    <div class="title">🛡️ 00631L 避險計算器</div>
+    <div class="subtitle">使用選擇權組合策略保護 00631L 持股</div>
+</div>
+''', unsafe_allow_html=True)
 
 # ======== 常數設定 ========
 OPTION_MULTIPLIER = 50.0  # 台指選擇權每點 50 元
