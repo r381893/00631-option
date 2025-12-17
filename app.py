@@ -453,43 +453,55 @@ if "new_opt_product" not in st.session_state:
 # 判斷是否為微台期貨
 is_micro_futures_preview = "微台期貨" in st.session_state.new_opt_product
 
-# 根據選擇決定顏色和提示
+# 根據選擇決定顏色
 is_buying = st.session_state.new_opt_direction == "買進"
 is_call = "Call" in st.session_state.new_opt_type
 
 if is_micro_futures_preview:
-    # 微台期貨 - 紫色
-    header_bg = "#f3e8ff"
-    header_border = "#8b5cf6"
-    header_text = "🟣 微台期貨 - 做空避險"
+    box_bg = "#f3e8ff"  # 淡紫
+    box_border = "#8b5cf6"
+    status_text = "🟣 微台期貨 - 做空避險"
 else:
-    # 選擇權 - 根據方向和類型決定顏色
     if is_buying:
-        header_bg = "#ffe4ec"  # 粉紅
-        header_border = "#ff69b4"
+        box_bg = "#ffe4ec"  # 粉紅
+        box_border = "#ff69b4"
     else:
-        header_bg = "#d4edda"  # 淡綠
-        header_border = "#28a745"
+        box_bg = "#d4edda"  # 淡綠
+        box_border = "#28a745"
     
-    # 組合類型和方向的文字
     type_emoji = "📈" if is_call else "📉"
     type_text = "買權 Call" if is_call else "賣權 Put"
     dir_emoji = "🔴" if is_buying else "🟢"
     dir_text = "買進" if is_buying else "賣出"
     premium_hint = "支付權利金" if is_buying else "收取權利金"
-    header_text = f"{dir_emoji} {dir_text} {type_emoji} {type_text} - {premium_hint}"
+    status_text = f"{dir_emoji} {dir_text} {type_emoji} {type_text} - {premium_hint}"
 
+# 動態注入 CSS 樣式到整個新增倉位 container
 st.markdown(f"""
-<div style='background: {header_bg}; border: 3px solid {header_border}; border-radius: 12px; padding: 18px 22px; margin-bottom: 20px; box-shadow: 0 8px 30px rgba(11,92,255,0.08);'>
-    <div style='font-size: 20px; font-weight: 800; color: {header_border}; margin-bottom: 15px; text-align: center;'>
-        {header_text}
-    </div>
-    <div class="section-title">➕ 新增倉位</div>
+<style>
+    div[data-testid="stVerticalBlock"]:has(> div[data-testid="stVerticalBlockBorderWrapper"]:has(div.add-position-box)) {{
+        background: {box_bg} !important;
+        border: 3px solid {box_border} !important;
+        border-radius: 12px !important;
+        padding: 15px !important;
+        margin-bottom: 20px !important;
+    }}
+</style>
 """, unsafe_allow_html=True)
 
-# 產品類型選擇
-opt_product = st.selectbox("產品", ["台指選擇權 (50元/點)", "微台期貨 (10元/點)"], key="new_opt_product")
-is_micro_futures = "微台期貨" in opt_product
+# 使用 container 搭配 border 來創建可變色的框框
+with st.container(border=True):
+    # 狀態提示
+    st.markdown(f"""
+    <div class="add-position-box" style='font-size: 18px; font-weight: 800; color: {box_border}; text-align: center; padding: 10px 0; margin-bottom: 10px;'>
+        {status_text}
+    </div>
+    <div class="section-title">➕ 新增倉位</div>
+    """, unsafe_allow_html=True)
+    
+    # 產品類型選擇
+    opt_product = st.selectbox("產品", ["台指選擇權 (50元/點)", "微台期貨 (10元/點)"], key="new_opt_product")
+    is_micro_futures = "微台期貨" in opt_product
 
 if is_micro_futures:
     # ===== 微台期貨介面 =====
