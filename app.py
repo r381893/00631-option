@@ -485,26 +485,14 @@ st.markdown(f"""
         {header_text}
     </div>
     <div class="section-title">➕ 新增倉位</div>
-</div>
 """, unsafe_allow_html=True)
 
-# 產品類型選擇 - 獨立區塊
-st.markdown("""
-<div style='background: #f1f5f9; border-radius: 8px; padding: 12px 16px; margin-bottom: 12px;'>
-    <div style='font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 8px;'>📦 選擇產品</div>
-</div>
-""", unsafe_allow_html=True)
-opt_product = st.selectbox("產品", ["台指選擇權 (50元/點)", "微台期貨 (10元/點)"], key="new_opt_product", label_visibility="collapsed")
+# 產品類型選擇
+opt_product = st.selectbox("產品", ["台指選擇權 (50元/點)", "微台期貨 (10元/點)"], key="new_opt_product")
 is_micro_futures = "微台期貨" in opt_product
 
 if is_micro_futures:
     # ===== 微台期貨介面 =====
-    st.markdown("""
-    <div style='background: #f1f5f9; border-radius: 8px; padding: 12px 16px; margin: 12px 0;'>
-        <div style='font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 8px;'>📊 交易參數</div>
-    </div>
-    """, unsafe_allow_html=True)
-    
     col1, col2 = st.columns([2, 1])
     
     with col1:
@@ -513,11 +501,7 @@ if is_micro_futures:
     with col2:
         opt_lots = st.number_input("口數", min_value=1, step=1, value=1, key="micro_lots")
     
-    st.markdown("""
-    <div style='background: #fef3c7; border-left: 4px solid #f59e0b; padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 12px 0;'>
-        <span style='font-size: 13px; color: #92400e;'>📌 微台期貨：做空方向，一點 10 元</span>
-    </div>
-    """, unsafe_allow_html=True)
+    st.caption("📌 微台期貨：做空方向，一點 10 元")
     
     if st.button("✅ 新增微台期貨倉位", use_container_width=True, key="add_micro"):
         new_position = {
@@ -541,27 +525,12 @@ if is_micro_futures:
 
 else:
     # ===== 台指選擇權介面 =====
-    
-    # 類型與方向區塊
-    st.markdown("""
-    <div style='background: #f1f5f9; border-radius: 8px; padding: 12px 16px; margin: 12px 0;'>
-        <div style='font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 8px;'>🎯 選擇類型與方向</div>
-    </div>
-    """, unsafe_allow_html=True)
-    
     col1, col2 = st.columns([1.2, 1.2])
     
     with col1:
         opt_type = st.selectbox("類型", ["買權 (Call)", "賣權 (Put)"], key="new_opt_type")
     with col2:
         opt_direction = st.radio("方向", ["買進", "賣出"], horizontal=True, key="new_opt_direction")
-    
-    # 交易參數區塊
-    st.markdown("""
-    <div style='background: #f1f5f9; border-radius: 8px; padding: 12px 16px; margin: 12px 0;'>
-        <div style='font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 8px;'>📊 交易參數</div>
-    </div>
-    """, unsafe_allow_html=True)
     
     col3, col4, col5 = st.columns([1.5, 1, 1.5])
     
