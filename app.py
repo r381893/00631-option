@@ -442,7 +442,15 @@ if etf_lots > 0:
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ======== 新增倉位 ========
-st.markdown("<div class='card'>", unsafe_allow_html=True)
+# 先檢查方向選擇以決定背景顏色（需要在卡片外先讀取）
+# 使用 session_state 來追蹤方向
+if "new_opt_direction_value" not in st.session_state:
+    st.session_state.new_opt_direction_value = "買進"
+
+# 根據方向決定背景顏色
+direction_color = "#ffe4ec" if st.session_state.new_opt_direction_value == "買進" else "#e8f5e9"  # 粉紅 vs 淡綠
+
+st.markdown(f"<div class='card' style='background: {direction_color}; transition: background 0.3s ease;'>", unsafe_allow_html=True)
 st.markdown('<div class="section-title">➕ 新增倉位</div>', unsafe_allow_html=True)
 
 # 產品類型選擇（在表單外，可動態更新 UI）
@@ -483,12 +491,17 @@ if is_micro_futures:
 
 else:
     # ===== 台指選擇權介面 =====
+    
+    # 定義方向變更的回調函數
+    def on_direction_change():
+        st.session_state.new_opt_direction_value = st.session_state.new_opt_direction
+    
     col1, col2 = st.columns([1.2, 1.2])
     
     with col1:
         opt_type = st.selectbox("類型", ["買權 (Call)", "賣權 (Put)"], key="new_opt_type")
     with col2:
-        opt_direction = st.radio("方向", ["買進", "賣出"], horizontal=True, key="new_opt_direction")
+        opt_direction = st.radio("方向", ["買進", "賣出"], horizontal=True, key="new_opt_direction", on_change=on_direction_change)
     
     col3, col4, col5 = st.columns([1.5, 1, 1.5])
     
