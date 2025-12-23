@@ -380,6 +380,12 @@ if "etf_cost" not in st.session_state:
     st.session_state.etf_cost = 0.0
 if "etf_current_price" not in st.session_state:
     st.session_state.etf_current_price = None
+
+# 現金持有狀態
+if "cash_cost" not in st.session_state:
+    st.session_state.cash_cost = 0.0
+if "cash_current" not in st.session_state:
+    st.session_state.cash_current = 0.0
     
 if "tse_index_price" not in st.session_state:
     st.session_state.tse_index_price = None
@@ -413,6 +419,9 @@ if not st.session_state.data_loaded:
         st.session_state.etf_cost = float(saved_data.get("etf_cost", 0.0))
         st.session_state.hedge_ratio = float(saved_data.get("hedge_ratio", 0.2))
         st.session_state.option_positions = saved_data.get("option_positions", [])
+        # 載入現金資料
+        st.session_state.cash_cost = float(saved_data.get("cash_cost", 0.0))
+        st.session_state.cash_current = float(saved_data.get("cash_current", 0.0))
         # 現價不再從檔案讀取，改用 Yahoo Finance 即時價格
     st.session_state.data_loaded = True
 
@@ -424,6 +433,8 @@ old_etf_lots = st.session_state.etf_lots
 old_etf_cost = st.session_state.etf_cost
 old_etf_current = st.session_state.etf_current_price
 old_hedge_ratio = st.session_state.hedge_ratio
+old_cash_cost = st.session_state.cash_cost
+old_cash_current = st.session_state.cash_current
 
 etf_lots = st.sidebar.number_input(
     "持有張數",
@@ -450,6 +461,27 @@ etf_current = st.sidebar.number_input(
     min_value=0.0,
     format="%.2f",
     help="00631L 的現價（自動抓取或手動輸入）"
+)
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("## 💰 現金設定")
+
+cash_cost = st.sidebar.number_input(
+    "現金成本 (元)",
+    value=float(st.session_state.cash_cost),
+    step=1000.0,
+    min_value=0.0,
+    format="%.0f",
+    help="投入的現金成本"
+)
+
+cash_current = st.sidebar.number_input(
+    "目前現金 (元)",
+    value=float(st.session_state.cash_current),
+    step=1000.0,
+    min_value=0.0,
+    format="%.0f",
+    help="目前帳戶中的現金餘額"
 )
 
 st.sidebar.markdown("---")
@@ -491,6 +523,8 @@ st.session_state.etf_lots = etf_lots
 st.session_state.etf_cost = etf_cost
 st.session_state.etf_current_price = etf_current
 st.session_state.hedge_ratio = hedge_ratio
+st.session_state.cash_cost = cash_cost
+st.session_state.cash_current = cash_current
 
 # 當前指數
 center = st.session_state.tse_index_price
@@ -505,12 +539,16 @@ st.sidebar.markdown(f"""
 if (etf_lots != old_etf_lots or 
     etf_cost != old_etf_cost or 
     etf_current != old_etf_current or
-    hedge_ratio != old_hedge_ratio):
+    hedge_ratio != old_hedge_ratio or
+    cash_cost != old_cash_cost or
+    cash_current != old_cash_current):
     save_data({
         "etf_lots": etf_lots,
         "etf_cost": etf_cost,
         "etf_current_price": etf_current,
         "hedge_ratio": hedge_ratio,
+        "cash_cost": cash_cost,
+        "cash_current": cash_current,
         "option_positions": st.session_state.option_positions
     })
     st.sidebar.success("✅ 已自動儲存", icon="💾")
@@ -535,6 +573,8 @@ with col2:
             "etf_cost": 0.0,
             "etf_current_price": st.session_state.etf_current_price,
             "hedge_ratio": 0.2,
+            "cash_cost": st.session_state.cash_cost,
+            "cash_current": st.session_state.cash_current,
             "option_positions": []
         })
         st.success("已清空所有資料")
@@ -547,28 +587,64 @@ if etf_lots > 0:
     etf_cost_value = etf_shares * etf_cost
     etf_unrealized_pnl = etf_market_value - etf_cost_value
     pnl_pct = (etf_unrealized_pnl / etf_cost_value * 100) if etf_cost_value > 0 else 0
-    
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.markdown('<div class="section-title">💰 00631L 庫存摘要</div>', unsafe_allow_html=True)
-    
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("持有張數", f"{etf_lots:.2f} 張", f"{etf_shares:,.0f} 股")
-    with col2:
-        st.metric("市值", f"{etf_market_value:,.0f} 元")
-    with col3:
-        st.metric("成本", f"{etf_cost_value:,.0f} 元")
-    with col4:
-        delta_color = "normal" if etf_unrealized_pnl >= 0 else "inverse"
-        st.metric("未實現損益", f"{etf_unrealized_pnl:+,.0f} 元", f"{pnl_pct:+.2f}%", delta_color=delta_color)
+    etf_pnl_class = "profit" if etf_unrealized_pnl >= 0 else "loss"
     
     st.markdown(f"""
-    <div style='margin-top: 10px; padding: 10px; background-color: #fef3c7; border-radius: 8px;'>
-        <span style='font-weight:700; color:#92400e;'>📌 建議避險:</span> 
-        持有 {etf_lots:.2f} 張，建議買入 <b>{suggested_hedge_lots:.1f} 口</b> 賣權進行保護
+    <div class='card'>
+        <div class="section-title">💰 00631L 庫存摘要</div>
+        <div style='display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;'>
+            <div style='background: var(--glass-bg); padding: 10px; border-radius: 10px; border: 1px solid var(--border-color);'>
+                <div style='font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;'>持有張數</div>
+                <div style='font-size: 16px; font-weight: 700; color: var(--text-primary);'>{etf_lots:.2f} 張</div>
+                <div style='font-size: 10px; color: var(--text-secondary);'>↑ {etf_shares:,.0f} 股</div>
+            </div>
+            <div style='background: var(--glass-bg); padding: 10px; border-radius: 10px; border: 1px solid var(--border-color);'>
+                <div style='font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;'>市值</div>
+                <div style='font-size: 16px; font-weight: 700; color: var(--text-primary);'>{etf_market_value:,.0f} 元</div>
+            </div>
+            <div style='background: var(--glass-bg); padding: 10px; border-radius: 10px; border: 1px solid var(--border-color);'>
+                <div style='font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;'>成本</div>
+                <div style='font-size: 16px; font-weight: 700; color: var(--text-primary);'>{etf_cost_value:,.0f} 元</div>
+            </div>
+            <div style='background: var(--glass-bg); padding: 10px; border-radius: 10px; border: 1px solid var(--border-color);'>
+                <div style='font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;'>未實現損益</div>
+                <div style='font-size: 16px; font-weight: 700;' class='{etf_pnl_class}'>{etf_unrealized_pnl:+,.0f} 元</div>
+                <div style='font-size: 10px;' class='{etf_pnl_class}'>{pnl_pct:+.2f}%</div>
+            </div>
+        </div>
+        <div style='margin-top: 10px; padding: 8px 10px; background-color: #fef3c7; border-radius: 8px; font-size: 12px;'>
+            <span style='font-weight:700; color:#92400e;'>📌 建議避險:</span> 
+            持有 {etf_lots:.2f} 張，建議買入 <b>{suggested_hedge_lots:.1f} 口</b> 賣權進行保護
+        </div>
     </div>
     """, unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+
+# ======== 現金持有 ========
+if cash_cost > 0 or cash_current > 0:
+    cash_pnl = cash_current - cash_cost
+    cash_pnl_pct = (cash_pnl / cash_cost * 100) if cash_cost > 0 else 0
+    pnl_class = "profit" if cash_pnl >= 0 else "loss"
+    
+    st.markdown(f"""
+    <div class='card'>
+        <div class="section-title">💵 現金持有</div>
+        <div style='display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;'>
+            <div style='background: var(--glass-bg); padding: 12px; border-radius: 10px; border: 1px solid var(--border-color);'>
+                <div style='font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;'>現金成本</div>
+                <div style='font-size: 16px; font-weight: 700; color: var(--text-primary);'>{cash_cost:,.0f} 元</div>
+            </div>
+            <div style='background: var(--glass-bg); padding: 12px; border-radius: 10px; border: 1px solid var(--border-color);'>
+                <div style='font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;'>目前現金</div>
+                <div style='font-size: 16px; font-weight: 700; color: var(--text-primary);'>{cash_current:,.0f} 元</div>
+            </div>
+            <div style='background: var(--glass-bg); padding: 12px; border-radius: 10px; border: 1px solid var(--border-color);'>
+                <div style='font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;'>現金損益</div>
+                <div style='font-size: 16px; font-weight: 700;' class='{pnl_class}'>{cash_pnl:+,.0f} 元</div>
+                <div style='font-size: 11px;' class='{pnl_class}'>{cash_pnl_pct:+.2f}%</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # ======== 新增倉位 ========
 st.markdown("<div class='card'>", unsafe_allow_html=True)
@@ -605,6 +681,8 @@ if is_micro_futures:
             "etf_cost": st.session_state.etf_cost,
             "etf_current_price": st.session_state.etf_current_price,
             "hedge_ratio": st.session_state.hedge_ratio,
+            "cash_cost": st.session_state.cash_cost,
+            "cash_current": st.session_state.cash_current,
             "option_positions": st.session_state.option_positions
         })
         st.success("已新增微台期貨倉位")
@@ -644,6 +722,8 @@ else:
             "etf_cost": st.session_state.etf_cost,
             "etf_current_price": st.session_state.etf_current_price,
             "hedge_ratio": st.session_state.hedge_ratio,
+            "cash_cost": st.session_state.cash_cost,
+            "cash_current": st.session_state.cash_current,
             "option_positions": st.session_state.option_positions
         })
         st.success("已新增選擇權倉位")
@@ -733,6 +813,8 @@ if st.session_state.option_positions:
                         "etf_cost": st.session_state.etf_cost,
                         "etf_current_price": st.session_state.etf_current_price,
                         "hedge_ratio": st.session_state.hedge_ratio,
+                        "cash_cost": st.session_state.cash_cost,
+                        "cash_current": st.session_state.cash_current,
                         "option_positions": st.session_state.option_positions
                     })
                     st.rerun()
@@ -745,6 +827,8 @@ if st.session_state.option_positions:
                     "etf_cost": st.session_state.etf_cost,
                     "etf_current_price": st.session_state.etf_current_price,
                     "hedge_ratio": st.session_state.hedge_ratio,
+                    "cash_cost": st.session_state.cash_cost,
+                    "cash_current": st.session_state.cash_current,
                     "option_positions": st.session_state.option_positions
                 })
                 st.rerun()
@@ -757,6 +841,8 @@ if st.session_state.option_positions:
                     "etf_cost": st.session_state.etf_cost,
                     "etf_current_price": st.session_state.etf_current_price,
                     "hedge_ratio": st.session_state.hedge_ratio,
+                    "cash_cost": st.session_state.cash_cost,
+                    "cash_current": st.session_state.cash_current,
                     "option_positions": st.session_state.option_positions
                 })
                 st.rerun()
